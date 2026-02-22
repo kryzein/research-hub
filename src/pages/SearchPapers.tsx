@@ -29,16 +29,16 @@ export default function SearchPapers() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=10&select=DOI,title,author,abstract,container-title,published-print,published-online`
+        `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=10&fields=title,authors,abstract,externalIds,journal,year`
       );
       const data = await res.json();
-      const papers: Paper[] = (data.message?.items || []).map((item: any) => ({
-        title: item.title?.[0] || "Untitled",
-        authors: (item.author || []).map((a: any) => `${a.given || ""} ${a.family || ""}`).join(", ") || "Unknown",
-        doi: item.DOI || "",
-        abstract: item.abstract?.replace(/<[^>]*>/g, "") || "No abstract available.",
-        journal: item["container-title"]?.[0] || "Unknown journal",
-        year: item["published-print"]?.["date-parts"]?.[0]?.[0] || item["published-online"]?.["date-parts"]?.[0]?.[0] || null,
+      const papers: Paper[] = (data.data || []).map((item: any) => ({
+        title: item.title || "Untitled",
+        authors: (item.authors || []).map((a: any) => a.name).join(", ") || "Unknown",
+        doi: item.externalIds?.DOI || "",
+        abstract: item.abstract || "No abstract available.",
+        journal: item.journal?.name || "Unknown journal",
+        year: item.year || null,
       }));
       setResults(papers);
       if (papers.length === 0) toast.info("No results found. Try different keywords.");
@@ -75,7 +75,7 @@ export default function SearchPapers() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Search Academic Papers</h1>
-        <p className="text-muted-foreground mt-1">Search millions of papers via CrossRef's open database.</p>
+        <p className="text-muted-foreground mt-1">Search millions of papers via Semantic Scholar's AI-powered database.</p>
       </div>
 
       <div className="flex gap-2 max-w-2xl">
