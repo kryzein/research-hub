@@ -13,7 +13,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-foreground">ScholarHub</span>
+              <span className="font-semibold text-foreground">Tulong Sulong</span>
             </div>
           </header>
           <main className="flex-1 p-6 bg-muted/20 overflow-auto">
