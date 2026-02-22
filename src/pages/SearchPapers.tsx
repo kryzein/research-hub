@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookmarkPlus, Loader2, ExternalLink } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, BookmarkPlus, Loader2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+
+type SortOption = "relevance" | "title-asc" | "title-desc" | "year-newest" | "year-oldest";
 
 interface Paper {
   title: string;
@@ -23,6 +26,23 @@ export default function SearchPapers() {
   const [results, setResults] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("relevance");
+
+  const sortedResults = useMemo(() => {
+    const sorted = [...results];
+    switch (sortBy) {
+      case "title-asc":
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case "title-desc":
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case "year-newest":
+        return sorted.sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+      case "year-oldest":
+        return sorted.sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+      default:
+        return sorted;
+    }
+  }, [results, sortBy]);
 
   const searchPapers = async () => {
     if (!query.trim()) return;
@@ -91,8 +111,28 @@ export default function SearchPapers() {
         </Button>
       </div>
 
+      {results.length > 0 && (
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Sort by:</span>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="relevance">Relevance</SelectItem>
+              <SelectItem value="year-newest">Year (Newest)</SelectItem>
+              <SelectItem value="year-oldest">Year (Oldest)</SelectItem>
+              <SelectItem value="title-asc">Title (A → Z)</SelectItem>
+              <SelectItem value="title-desc">Title (Z → A)</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground ml-auto">{results.length} results</span>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {results.map((paper, i) => (
+        {sortedResults.map((paper, i) => (
           <Card key={paper.doi || i}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-4">
