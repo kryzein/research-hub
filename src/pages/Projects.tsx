@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, FolderKanban, Loader2, Upload, FileText, Download, X } from "lucide-react";
+import { Plus, Trash2, FolderKanban, Loader2, Upload, FileText, Download, X, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ interface ProjectFile {
 }
 
 export default function Projects() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -200,14 +202,19 @@ export default function Projects() {
             return (
               <Card key={project.id} className="flex flex-col">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between">
                     <div className="flex-1 cursor-pointer" onClick={() => setExpandedProject(isExpanded ? null : project.id)}>
                       <CardTitle className="text-base">{project.name}</CardTitle>
                       <CardDescription className="mt-1">{project.description || "No description"}</CardDescription>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(project.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => navigate(`/dashboard/editor/${project.id}`)}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(project.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 flex-1 flex flex-col gap-3">
@@ -255,6 +262,9 @@ export default function Projects() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/dashboard/editor/${project.id}?fileId=${file.id}`)}>
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(file)}>
                               <Download className="h-3 w-3" />
                             </Button>

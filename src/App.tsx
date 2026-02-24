@@ -4,12 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LiveblocksProvider } from "@liveblocks/react";
+import { liveblocksAuthEndpoint } from "@/lib/liveblocks";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
+import ProjectEditor from "./pages/ProjectEditor";
 import SearchPapers from "./pages/SearchPapers";
 import MyLibrary from "./pages/MyLibrary";
 import NotFound from "./pages/NotFound";
@@ -18,13 +21,14 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    <LiveblocksProvider authEndpoint={liveblocksAuthEndpoint}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route
@@ -43,6 +47,16 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Projects />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/editor/:projectId"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ProjectEditor />
                   </DashboardLayout>
                 </ProtectedRoute>
               }
@@ -72,6 +86,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </LiveblocksProvider>
   </QueryClientProvider>
 );
 
