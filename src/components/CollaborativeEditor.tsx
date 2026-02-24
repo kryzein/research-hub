@@ -63,6 +63,8 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
   const [initialized, setInitialized] = useState(false);
 
   const editor = useEditor({
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
     extensions: [
       StarterKit.configure({
         undoRedo: false,
@@ -74,7 +76,7 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
         placeholder: "Start writing or paste content from your uploaded files...",
       }),
       Collaboration.configure({
-        document: doc,
+        fragment: doc.getXmlFragment("default"),
       }),
       CollaborationCursor.configure({
         provider,
