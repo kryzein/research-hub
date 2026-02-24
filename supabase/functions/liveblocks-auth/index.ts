@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -48,7 +48,8 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    const response = await fetch("https://api.liveblocks.io/v2/rooms/" + encodeURIComponent(room) + "/authorize", {
+    // Use Liveblocks identify-user endpoint (v2 API)
+    const response = await fetch("https://api.liveblocks.io/v2/identify-user", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LIVEBLOCKS_SECRET_KEY}`,
@@ -56,6 +57,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         userId: user.id,
+        groupIds: [],
         userInfo: {
           name: profile?.display_name || user.email || "Anonymous",
           avatar: profile?.avatar_url || "",
@@ -65,45 +67,8 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      // If room doesn't exist, create it first
-      if (response.status === 404) {
-        await fetch("https://api.liveblocks.io/v2/rooms", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LIVEBLOCKS_SECRET_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: room,
-            defaultAccesses: ["room:write"],
-          }),
-        });
-
-        // Retry authorization
-        const retryResponse = await fetch("https://api.liveblocks.io/v2/rooms/" + encodeURIComponent(room) + "/authorize", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LIVEBLOCKS_SECRET_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            userInfo: {
-              name: profile?.display_name || user.email || "Anonymous",
-              avatar: profile?.avatar_url || "",
-              color: getRandomColor(user.id),
-            },
-          }),
-        });
-
-        const retryData = await retryResponse.text();
-        return new Response(retryData, {
-          status: retryResponse.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       const errorText = await response.text();
+      console.error("Liveblocks identify-user failed:", response.status, errorText);
       throw new Error(`Liveblocks auth failed [${response.status}]: ${errorText}`);
     }
 

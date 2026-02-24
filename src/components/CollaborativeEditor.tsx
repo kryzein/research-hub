@@ -62,6 +62,9 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
   const others = useOthers();
   const [initialized, setInitialized] = useState(false);
 
+  const userName = (currentUser?.info?.name as string) || "Anonymous";
+  const userColor = (currentUser?.info?.color as string) || "#999";
+
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -76,13 +79,12 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
         placeholder: "Start writing or paste content from your uploaded files...",
       }),
       Collaboration.configure({
-        fragment: doc.getXmlFragment("default"),
+        document: doc,
+        field: "default",
       }),
       CollaborationCursor.configure({
         provider,
-        user: currentUser?.info
-          ? { name: currentUser.info.name as string, color: currentUser.info.color as string }
-          : { name: "Anonymous", color: "#999" },
+        user: { name: userName, color: userColor },
       }),
     ],
     editorProps: {
@@ -91,7 +93,7 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
           "prose prose-sm sm:prose max-w-none focus:outline-none min-h-[400px] px-6 py-4 text-foreground",
       },
     },
-  });
+  }, [doc, provider]);
 
   // Insert initial content once when the Yjs doc is empty
   useEffect(() => {
