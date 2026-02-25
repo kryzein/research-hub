@@ -1,13 +1,13 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { RoomProvider } from "@liveblocks/react";
 import { CollaborativeEditor } from "@/components/CollaborativeEditor";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Share2, Copy, Check } from "lucide-react";
+import { ArrowLeft, Loader2, Share2, Copy, Check, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,14 +17,36 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ClientSideSuspense } from "@liveblocks/react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ProjectEditor() {
   const { projectId } = useParams<{ projectId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fileId = searchParams.get("fileId");
   const navigate = useNavigate();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+
+  // Fetch all files for this project
+  const { data: projectFiles } = useQuery({
+    queryKey: ["project-files", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_files")
+        .select("id, file_name, file_type")
+        .eq("project_id", projectId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+  });
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
@@ -107,7 +129,7 @@ export default function ProjectEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/projects")}>
             <ArrowLeft className="h-4 w-4" />
@@ -117,6 +139,33 @@ export default function ProjectEditor() {
             <p className="text-sm text-muted-foreground">{project.description || "Collaborative editor"}</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          {projectFiles && projectFiles.length > 0 && (
+            <Select
+              value={fileId || "none"}
+              onValueChange={(value) => {
+                if (value === "none") {
+                  setSearchParams({});
+                } else {
+                  setSearchParams({ fileId: value });
+                }
+              }}
+            >
+              <SelectTrigger className="w-[200px]">
+                <FileText className="h-4 w-4 mr-2 shrink-0" />
+                <SelectValue placeholder="Select a file" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Blank document</SelectItem>
+                {projectFiles.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.file_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
         <Dialog>
           <DialogTrigger asChild>
@@ -140,9 +189,11 @@ export default function ProjectEditor() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <RoomProvider
+        key={fileId || "blank"}
         id={roomId}
         initialPresence={{}}
       >
