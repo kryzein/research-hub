@@ -208,7 +208,13 @@ export default function Projects() {
                       <CardDescription className="mt-1">{project.description || "No description"}</CardDescription>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => navigate(`/dashboard/editor/${project.id}`)}>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => {
+                        const firstFile = files[0];
+                        const url = firstFile
+                          ? `/dashboard/editor/${project.id}?fileId=${firstFile.id}`
+                          : `/dashboard/editor/${project.id}`;
+                        navigate(url);
+                      }}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(project.id)}>
