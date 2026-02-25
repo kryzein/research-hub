@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
@@ -65,10 +65,8 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
   const userName = (currentUser?.info?.name as string) || "Anonymous";
   const userColor = (currentUser?.info?.color as string) || "#999";
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    shouldRerenderOnTransaction: false,
-    extensions: [
+  const editorExtensions = useMemo(
+    () => [
       StarterKit.configure({
         undoRedo: false,
       }),
@@ -84,16 +82,35 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
       }),
       CollaborationCursor.configure({
         provider,
-        user: { name: userName, color: userColor },
+        user: { name: "Anonymous", color: "#999" },
       }),
     ],
-    editorProps: {
-      attributes: {
-        class:
-          "prose prose-sm sm:prose max-w-none focus:outline-none min-h-[400px] px-6 py-4 text-foreground",
+    [doc, provider],
+  );
+
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      shouldRerenderOnTransaction: false,
+      extensions: editorExtensions,
+      editorProps: {
+        attributes: {
+          class:
+            "prose prose-sm sm:prose max-w-none focus:outline-none min-h-[400px] px-6 py-4 text-foreground",
+        },
       },
     },
-  }, [doc, provider]);
+    [doc, provider],
+  );
+
+  useEffect(() => {
+    if (!editor) return;
+
+    editor.commands.updateUser({
+      name: userName,
+      color: userColor,
+    });
+  }, [editor, userName, userColor]);
 
   // Insert initial content once when the Yjs doc is empty
   useEffect(() => {
