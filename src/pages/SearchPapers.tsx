@@ -49,8 +49,27 @@ export default function SearchPapers() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=10&fields=title,authors,abstract,externalIds,journal,year`
+        `https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=${encodeURIComponent(query)}&limit=10&fields=title,authors,abstract,externalIds,journal,year`
       );
+      if (!res.ok) {
+        // Fallback to the original endpoint
+        const fallbackRes = await fetch(
+          `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=10&fields=title,authors,abstract,externalIds,journal,year`
+        );
+        if (!fallbackRes.ok) throw new Error("Search API unavailable");
+        const fallbackData = await fallbackRes.json();
+        const papers: Paper[] = (fallbackData.data || []).map((item: any) => ({
+          title: item.title || "Untitled",
+          authors: (item.authors || []).map((a: any) => a.name).join(", ") || "Unknown",
+          doi: item.externalIds?.DOI || "",
+          abstract: item.abstract || "No abstract available.",
+          journal: item.journal?.name || "Unknown journal",
+          year: item.year || null,
+        }));
+        setResults(papers);
+        if (papers.length === 0) toast.info("No results found. Try different keywords.");
+        return;
+      }
       const data = await res.json();
       const papers: Paper[] = (data.data || []).map((item: any) => ({
         title: item.title || "Untitled",
