@@ -63,7 +63,7 @@ export default function ProjectEditor() {
   });
 
   // If a fileId is provided, extract its text content
-  const { data: fileText } = useQuery({
+  const { data: fileText, isError: isFileTextError } = useQuery({
     queryKey: ["file-text", fileId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -90,11 +90,15 @@ export default function ProjectEditor() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to extract text");
+      if (!response.ok) {
+        console.error("Failed to extract text, status:", response.status);
+        return `[Could not extract text from ${file.file_name}. You can edit the content directly in the editor.]`;
+      }
       const { text } = await response.json();
       return text as string;
     },
     enabled: !!fileId,
+    retry: false,
   });
 
   const shareUrl = `${window.location.origin}/dashboard/editor/${projectId}`;
