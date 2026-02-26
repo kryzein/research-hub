@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import JSZip from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,32 +60,52 @@ serve(async (req) => {
     if (ext === "txt" || ext === "md" || ext === "rtf") {
       text = await fileData.text();
     } else if (ext === "docx") {
-      // For DOCX files, extract the document.xml content from the ZIP
       try {
         const arrayBuffer = await fileData.arrayBuffer();
-        const uint8 = new Uint8Array(arrayBuffer);
+        const zip = await JSZip.loadAsync(arrayBuffer);
         
-        // Simple DOCX text extraction: find all text between <w:t> tags
-        // DOCX is a ZIP containing XML files
-        // We'll decode the raw bytes and extract readable text
-        const rawText = new TextDecoder("utf-8", { fatal: false }).decode(uint8);
+        // Extract document.xml which contains the main document content
+        const documentXml = await zip.file("word/document.xml")?.async("string");
         
-        // Try to find XML text content patterns in the binary
-        const textParts: string[] = [];
-        const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-        let match;
-        while ((match = regex.exec(rawText)) !== null) {
-          if (match[1]) {
-            textParts.push(match[1]);
+        if (documentXml) {
+          // Extract text from <w:t> tags
+          const textParts: string[] = [];
+          const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+          let match;
+          while ((match = regex.exec(documentXml)) !== null) {
+            if (match[1]) {
+              textParts.push(match[1]);
+            }
           }
-        }
-        
-        if (textParts.length > 0) {
-          text = textParts.join("");
+          
+          // Also detect paragraph breaks by looking for </w:p> tags
+          // Rebuild with paragraph awareness
+          if (textParts.length > 0) {
+            // Better approach: split by paragraphs
+            const paragraphs: string[] = [];
+            const pRegex = /<w:p[\s>][\s\S]*?<\/w:p>/g;
+            let pMatch;
+            while ((pMatch = pRegex.exec(documentXml)) !== null) {
+              const pContent = pMatch[0];
+              const tParts: string[] = [];
+              const tRegex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+              let tMatch;
+              while ((tMatch = tRegex.exec(pContent)) !== null) {
+                if (tMatch[1]) tParts.push(tMatch[1]);
+              }
+              if (tParts.length > 0) {
+                paragraphs.push(tParts.join(""));
+              }
+            }
+            text = paragraphs.length > 0 ? paragraphs.join("\n\n") : textParts.join("");
+          } else {
+            text = `[This file (${fileName}) is a Word document. The text extraction was limited. You can edit the content directly in the editor.]`;
+          }
         } else {
-          text = `[This file (${fileName}) is a Word document. The text extraction was limited. You can edit the content directly in the editor.]`;
+          text = `[Could not find document content in ${fileName}.]`;
         }
-      } catch {
+      } catch (e) {
+        console.error("DOCX extraction error:", e);
         text = `[Could not extract text from ${fileName}. You can edit the content directly in the editor.]`;
       }
     } else {
