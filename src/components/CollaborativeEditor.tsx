@@ -115,13 +115,14 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
   // Insert initial content once when the Yjs doc is empty
   useEffect(() => {
     if (editor && initialContent && !initialized) {
-      const yText = doc.getText("default");
-      if (yText.length === 0) {
+      // Check if the editor content is empty (only has an empty paragraph)
+      const isEmpty = editor.isEmpty;
+      if (isEmpty) {
         editor.commands.setContent(initialContent);
       }
       setInitialized(true);
     }
-  }, [editor, initialContent, initialized, doc]);
+  }, [editor, initialContent, initialized]);
 
   if (!editor) return null;
 

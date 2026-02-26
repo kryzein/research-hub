@@ -129,7 +129,7 @@ export default function ProjectEditor() {
     );
   }
 
-  const roomId = `project-${projectId}`;
+  const roomId = fileId ? `project-${projectId}-file-${fileId}` : `project-${projectId}`;
 
   return (
     <div className="space-y-4">
