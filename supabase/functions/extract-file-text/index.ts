@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -58,14 +58,40 @@ serve(async (req) => {
 
     if (ext === "txt" || ext === "md" || ext === "rtf") {
       text = await fileData.text();
+    } else if (ext === "docx") {
+      // For DOCX files, extract the document.xml content from the ZIP
+      try {
+        const arrayBuffer = await fileData.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        
+        // Simple DOCX text extraction: find all text between <w:t> tags
+        // DOCX is a ZIP containing XML files
+        // We'll decode the raw bytes and extract readable text
+        const rawText = new TextDecoder("utf-8", { fatal: false }).decode(uint8);
+        
+        // Try to find XML text content patterns in the binary
+        const textParts: string[] = [];
+        const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+        let match;
+        while ((match = regex.exec(rawText)) !== null) {
+          if (match[1]) {
+            textParts.push(match[1]);
+          }
+        }
+        
+        if (textParts.length > 0) {
+          text = textParts.join("");
+        } else {
+          text = `[This file (${fileName}) is a Word document. The text extraction was limited. You can edit the content directly in the editor.]`;
+        }
+      } catch {
+        text = `[Could not extract text from ${fileName}. You can edit the content directly in the editor.]`;
+      }
     } else {
-      // For PDF, DOCX etc., return a message that we extracted what we can
-      // For plain text we read directly; for binary formats we provide the raw text attempt
       try {
         text = await fileData.text();
-        // If it looks like binary garbage, provide a helpful message
         if (text.includes("\x00") || text.length > 100000) {
-          text = `[This file (${fileName}) is a binary document. The text content has been extracted as best as possible. You may want to paste your content directly into the editor for better results.]`;
+          text = `[This file (${fileName}) is a binary document. You can edit the content directly in the editor.]`;
         }
       } catch {
         text = `[Could not extract text from ${fileName}. Please paste your content directly into the editor.]`;
