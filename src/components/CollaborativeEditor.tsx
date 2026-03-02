@@ -7,23 +7,31 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import TextAlign from "@tiptap/extension-text-align";
+import ImageExt from "@tiptap/extension-image";
+import Underline from "@tiptap/extension-underline";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import FontSize from "tiptap-fontsize-extension";
 import * as Y from "yjs";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
-import { useRoom, useSelf, useOthers } from "@liveblocks/react";
-import {
-  Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3,
-  List, ListOrdered, CheckSquare, Highlighter, Quote, Minus, Undo, Redo, Users,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRoom, useSelf } from "@liveblocks/react";
+import { EditorToolbar } from "@/components/editor/EditorToolbar";
+import { BubbleToolbar } from "@/components/editor/BubbleToolbar";
+import { ActiveUsers } from "@/components/editor/ActiveUsers";
+import { ImagePreviewModal } from "@/components/editor/ImagePreviewModal";
+import { useState as useStateReact } from "react";
 
 interface CollaborativeEditorProps {
   initialContent?: string;
+  projectId?: string;
 }
 
-export function CollaborativeEditor({ initialContent }: CollaborativeEditorProps) {
+export function CollaborativeEditor({ initialContent, projectId }: CollaborativeEditorProps) {
   const room = useRoom();
   const [doc, setDoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<LiveblocksYjsProvider | null>(null);
@@ -48,19 +56,20 @@ export function CollaborativeEditor({ initialContent }: CollaborativeEditorProps
     );
   }
 
-  return <TiptapEditor doc={doc} provider={provider} initialContent={initialContent} />;
+  return <TiptapEditor doc={doc} provider={provider} initialContent={initialContent} projectId={projectId} />;
 }
 
 interface TiptapEditorProps {
   doc: Y.Doc;
   provider: LiveblocksYjsProvider;
   initialContent?: string;
+  projectId?: string;
 }
 
-function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
+function TiptapEditor({ doc, provider, initialContent, projectId }: TiptapEditorProps) {
   const currentUser = useSelf();
-  const others = useOthers();
   const [initialized, setInitialized] = useState(false);
+  const [previewImage, setPreviewImage] = useStateReact<string | null>(null);
 
   const userName = (currentUser?.info?.name as string) || "Anonymous";
   const userColor = (currentUser?.info?.color as string) || "#999";
@@ -73,6 +82,25 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
       Highlight,
       TaskList,
       TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      ImageExt.configure({
+        HTMLAttributes: {
+          class: "cursor-pointer max-w-full h-auto rounded-md",
+        },
+      }),
+      Underline,
+      TextStyle,
+      Color,
+      FontSize.configure({
+        defaultSize: "16px",
+        step: 2,
+      }),
       Placeholder.configure({
         placeholder: "Start writing or paste content from your uploaded files...",
       }),
@@ -98,6 +126,14 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
           class:
             "prose prose-sm sm:prose max-w-none focus:outline-none min-h-[400px] px-6 py-4 text-foreground",
         },
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement;
+          if (target.tagName === "IMG") {
+            setPreviewImage((target as HTMLImageElement).src);
+            return true;
+          }
+          return false;
+        },
       },
     },
     [doc, provider],
@@ -115,7 +151,6 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
   // Insert initial content once when the Yjs doc is empty
   useEffect(() => {
     if (editor && initialContent && !initialized) {
-      // Check if the editor content is empty (only has an empty paragraph)
       const isEmpty = editor.isEmpty;
       if (isEmpty) {
         editor.commands.setContent(initialContent);
@@ -128,171 +163,33 @@ function TiptapEditor({ doc, provider, initialContent }: TiptapEditorProps) {
 
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-card">
-      {/* Toolbar */}
-      <div className="border-b border-border bg-muted/30 px-2 py-1.5 flex items-center gap-0.5 flex-wrap">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive("bold")}
-          icon={<Bold className="h-4 w-4" />}
-          tooltip="Bold"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive("italic")}
-          icon={<Italic className="h-4 w-4" />}
-          tooltip="Italic"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive("strike")}
-          icon={<Strikethrough className="h-4 w-4" />}
-          tooltip="Strikethrough"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          active={editor.isActive("code")}
-          icon={<Code className="h-4 w-4" />}
-          tooltip="Code"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
-          active={editor.isActive("highlight")}
-          icon={<Highlighter className="h-4 w-4" />}
-          tooltip="Highlight"
-        />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          active={editor.isActive("heading", { level: 1 })}
-          icon={<Heading1 className="h-4 w-4" />}
-          tooltip="Heading 1"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          active={editor.isActive("heading", { level: 2 })}
-          icon={<Heading2 className="h-4 w-4" />}
-          tooltip="Heading 2"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          active={editor.isActive("heading", { level: 3 })}
-          icon={<Heading3 className="h-4 w-4" />}
-          tooltip="Heading 3"
-        />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive("bulletList")}
-          icon={<List className="h-4 w-4" />}
-          tooltip="Bullet List"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive("orderedList")}
-          icon={<ListOrdered className="h-4 w-4" />}
-          tooltip="Ordered List"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          active={editor.isActive("taskList")}
-          icon={<CheckSquare className="h-4 w-4" />}
-          tooltip="Task List"
-        />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive("blockquote")}
-          icon={<Quote className="h-4 w-4" />}
-          tooltip="Quote"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          active={false}
-          icon={<Minus className="h-4 w-4" />}
-          tooltip="Divider"
-        />
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          active={false}
-          icon={<Undo className="h-4 w-4" />}
-          tooltip="Undo"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          active={false}
-          icon={<Redo className="h-4 w-4" />}
-          tooltip="Redo"
-        />
-
-        {/* Active users */}
-        <div className="ml-auto flex items-center gap-1">
-          <Users className="h-4 w-4 text-muted-foreground mr-1" />
-          {currentUser?.info && (
-            <Tooltip>
-              <TooltipTrigger>
-                <Avatar className="h-6 w-6 border-2" style={{ borderColor: currentUser.info.color as string }}>
-                  <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-                    {(currentUser.info.name as string)?.charAt(0)?.toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent>{currentUser.info.name as string} (you)</TooltipContent>
-            </Tooltip>
-          )}
-          {others.map((other) => (
-            <Tooltip key={other.connectionId}>
-              <TooltipTrigger>
-                <Avatar className="h-6 w-6 border-2" style={{ borderColor: other.info?.color as string }}>
-                  <AvatarFallback className="text-[10px]" style={{ backgroundColor: other.info?.color as string, color: "white" }}>
-                    {(other.info?.name as string)?.charAt(0)?.toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent>{other.info?.name as string}</TooltipContent>
-            </Tooltip>
-          ))}
+      {/* Desktop toolbar */}
+      <div className="hidden sm:block">
+        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-2">
+          <div className="flex-1">
+            <EditorToolbar editor={editor} projectId={projectId} />
+          </div>
+          <ActiveUsers />
         </div>
       </div>
 
+      {/* Mobile: only show active users bar */}
+      <div className="sm:hidden border-b border-border bg-muted/30 px-3 py-2 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground font-medium">Select text for formatting</span>
+        <ActiveUsers />
+      </div>
+
+      {/* Bubble menu for mobile */}
+      <BubbleToolbar editor={editor} />
+
       {/* Editor content */}
       <EditorContent editor={editor} />
-    </div>
-  );
-}
 
-function ToolbarButton({
-  onClick,
-  active,
-  icon,
-  tooltip,
-}: {
-  onClick: () => void;
-  active: boolean;
-  icon: React.ReactNode;
-  tooltip: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-8 w-8 ${active ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}
-          onClick={onClick}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltip}</TooltipContent>
-    </Tooltip>
+      <ImagePreviewModal
+        src={previewImage}
+        alt="Editor image"
+        onClose={() => setPreviewImage(null)}
+      />
+    </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { RoomProvider } from "@liveblocks/react";
 import { CollaborativeEditor } from "@/components/CollaborativeEditor";
+import { DocxViewer } from "@/components/DocxViewer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Share2, Copy, Check, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Share2, Copy, Check, FileText, Eye, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import {
@@ -30,16 +30,15 @@ export default function ProjectEditor() {
   const [searchParams, setSearchParams] = useSearchParams();
   const fileId = searchParams.get("fileId");
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
 
-  // Fetch all files for this project
   const { data: projectFiles } = useQuery({
     queryKey: ["project-files", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("project_files")
-        .select("id, file_name, file_type")
+        .select("id, file_name, file_type, file_path")
         .eq("project_id", projectId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -62,14 +61,15 @@ export default function ProjectEditor() {
     enabled: !!projectId,
   });
 
-  // If a fileId is provided, extract its text content
-  const { data: fileText, isError: isFileTextError } = useQuery({
+  const selectedFile = projectFiles?.find((f) => f.id === fileId);
+  const isDocx = selectedFile?.file_name?.toLowerCase().endsWith(".docx");
+
+  const { data: fileText } = useQuery({
     queryKey: ["file-text", fileId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      // Get file path from project_files
       const { data: file, error: fileError } = await supabase
         .from("project_files")
         .select("file_path, file_name")
@@ -91,13 +91,12 @@ export default function ProjectEditor() {
       );
 
       if (!response.ok) {
-        console.error("Failed to extract text, status:", response.status);
-        return `[Could not extract text from ${file.file_name}. You can edit the content directly in the editor.]`;
+        return `[Could not extract text from ${file.file_name}.]`;
       }
       const { text } = await response.json();
       return text as string;
     },
-    enabled: !!fileId,
+    enabled: !!fileId && !isDocx,
     retry: false,
   });
 
@@ -135,7 +134,7 @@ export default function ProjectEditor() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/projects")}>
+          <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px]" onClick={() => navigate("/dashboard/projects")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -144,11 +143,12 @@ export default function ProjectEditor() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {projectFiles && projectFiles.length > 0 && (
             <Select
               value={fileId || "none"}
               onValueChange={(value) => {
+                setViewMode("edit");
                 if (value === "none") {
                   setSearchParams({});
                 } else {
@@ -156,7 +156,7 @@ export default function ProjectEditor() {
                 }
               }}
             >
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[200px] min-h-[44px]">
                 <FileText className="h-4 w-4 mr-2 shrink-0" />
                 <SelectValue placeholder="Select a file" />
               </SelectTrigger>
@@ -171,47 +171,64 @@ export default function ProjectEditor() {
             </Select>
           )}
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
+          {isDocx && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-w-[44px] min-h-[44px] gap-2"
+              onClick={() => setViewMode(viewMode === "edit" ? "view" : "edit")}
+            >
+              {viewMode === "edit" ? <Eye className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              {viewMode === "edit" ? "View" : "Edit"}
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Share this document</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Anyone with access to this project can collaborate in real-time using this link.
-            </p>
-            <div className="flex gap-2">
-              <Input value={shareUrl} readOnly />
-              <Button onClick={handleCopyLink} variant="outline">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          )}
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="min-w-[44px] min-h-[44px]">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Share this document</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Anyone with access to this project can collaborate in real-time using this link.
+              </p>
+              <div className="flex gap-2">
+                <Input value={shareUrl} readOnly />
+                <Button onClick={handleCopyLink} variant="outline" className="min-w-[44px] min-h-[44px]">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <RoomProvider
-        key={fileId || "blank"}
-        id={roomId}
-        initialPresence={{}}
-      >
-        <ClientSideSuspense
-          fallback={
-            <div className="flex items-center justify-center h-64 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Connecting to collaboration session...
-            </div>
-          }
+      {/* Document Viewer Mode for DOCX */}
+      {isDocx && viewMode === "view" && selectedFile ? (
+        <DocxViewer filePath={selectedFile.file_path} fileName={selectedFile.file_name} />
+      ) : (
+        <RoomProvider
+          key={fileId || "blank"}
+          id={roomId}
+          initialPresence={{}}
         >
-          <CollaborativeEditor initialContent={fileText || undefined} />
-        </ClientSideSuspense>
-      </RoomProvider>
+          <ClientSideSuspense
+            fallback={
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Connecting to collaboration session...
+              </div>
+            }
+          >
+            <CollaborativeEditor initialContent={fileText || undefined} projectId={projectId} />
+          </ClientSideSuspense>
+        </RoomProvider>
+      )}
     </div>
   );
 }
