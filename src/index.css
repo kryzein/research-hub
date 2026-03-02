@@ -155,3 +155,65 @@ All colors MUST be HSL.
 .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
   margin-top: 0.25rem;
 }
+
+/* Table styles */
+.tiptap table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.tiptap td,
+.tiptap th {
+  border: 1px solid hsl(var(--border));
+  min-width: 80px;
+  padding: 0.5rem;
+  position: relative;
+  vertical-align: top;
+}
+
+.tiptap th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.tiptap .selectedCell::after {
+  background: hsl(var(--accent) / 0.3);
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+/* Image styles in editor */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tiptap img:hover {
+  opacity: 0.9;
+}
+
+/* Docx viewer image styles */
+.docx-viewer img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  margin: 0.5rem 0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.docx-viewer img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.1);
+}
