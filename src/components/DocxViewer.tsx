@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import mammoth from "mammoth";
+import mammoth from "mammoth/mammoth.browser";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { ImagePreviewModal } from "@/components/editor/ImagePreviewModal";

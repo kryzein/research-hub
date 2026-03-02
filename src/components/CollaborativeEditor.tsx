@@ -21,7 +21,7 @@ import * as Y from "yjs";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 import { useRoom, useSelf } from "@liveblocks/react";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
-import { BubbleToolbar } from "@/components/editor/BubbleToolbar";
+import { MobileToolbar } from "@/components/editor/MobileToolbar";
 import { ActiveUsers } from "@/components/editor/ActiveUsers";
 import { ImagePreviewModal } from "@/components/editor/ImagePreviewModal";
 import { useState as useStateReact } from "react";
@@ -175,15 +175,17 @@ function TiptapEditor({ doc, provider, initialContent, projectId }: TiptapEditor
 
       {/* Mobile: only show active users bar */}
       <div className="sm:hidden border-b border-border bg-muted/30 px-3 py-2 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground font-medium">Select text for formatting</span>
+        <span className="text-xs text-muted-foreground font-medium">Editing</span>
         <ActiveUsers />
       </div>
 
-      {/* Bubble menu for mobile */}
-      <BubbleToolbar editor={editor} />
+      {/* Editor content - add bottom padding on mobile for floating toolbar */}
+      <div className="sm:pb-0 pb-24">
+        <EditorContent editor={editor} />
+      </div>
 
-      {/* Editor content */}
-      <EditorContent editor={editor} />
+      {/* Mobile floating toolbar */}
+      <MobileToolbar editor={editor} />
 
       <ImagePreviewModal
         src={previewImage}
